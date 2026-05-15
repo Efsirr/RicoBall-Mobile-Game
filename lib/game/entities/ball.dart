@@ -11,7 +11,15 @@ class Ball extends PositionComponent {
   double lifetime = 0;
   bool isInOrbit = false;
   double radiusScale = 1.0;
-  final List<_TrailPoint> _trail = [];
+
+  // Fixed-size circular buffer of trail points. Avoids the per-frame
+  // List.add + List.removeAt(0) shift, and the per-point allocation.
+  late final List<_TrailPoint> _trail = List<_TrailPoint>.generate(
+    GameConst.trailLength,
+    (_) => _TrailPoint(),
+  );
+  int _trailHead = 0; // index of next write
+  int _trailCount = 0; // valid samples currently in the buffer
 
   Ball({required super.position}) : super(anchor: Anchor.center);
 
@@ -22,7 +30,7 @@ class Ball extends PositionComponent {
     isActive = true;
     lifetime = 0;
     isInOrbit = false;
-    _trail.clear();
+    _resetTrail();
   }
 
   void setHeavy(bool enabled) {
@@ -33,14 +41,21 @@ class Ball extends PositionComponent {
     isActive = false;
     velocity.setZero();
     isInOrbit = false;
-    _trail.clear();
+    _resetTrail();
+  }
+
+  void _resetTrail() {
+    _trailHead = 0;
+    _trailCount = 0;
   }
 
   void addTrailPoint() {
-    _trail.add(_TrailPoint(position.clone(), isInOrbit));
-    while (_trail.length > GameConst.trailLength) {
-      _trail.removeAt(0);
-    }
+    final cell = _trail[_trailHead];
+    cell.x = position.x;
+    cell.y = position.y;
+    cell.inOrbit = isInOrbit;
+    _trailHead = (_trailHead + 1) % _trail.length;
+    if (_trailCount < _trail.length) _trailCount++;
   }
 
   @override
@@ -66,29 +81,36 @@ class Ball extends PositionComponent {
       return;
     }
 
-    // Trail
-    for (int i = 0; i < _trail.length; i++) {
-      final t = i / _trail.length;
-      final point = _trail[i];
-      final trailOffset = (point.position - position).toOffset();
-      final trailColor = point.inOrbit ? coreColor : trailBaseColor;
+    // Trail — walk from oldest to newest. When the buffer is full the
+    // oldest sample sits at _trailHead; otherwise it sits at index 0.
+    final count = _trailCount;
+    if (count > 0) {
+      final len = _trail.length;
+      final start = count < len ? 0 : _trailHead;
       final cometScale = progress.hasCometTrail ? 1.35 : 1.0;
-      canvas.drawCircle(
-        trailOffset,
-        collisionRadius * (point.inOrbit ? 0.8 : 0.6) * t * cometScale,
-        Paint()
-          ..color = trailColor.withValues(
-            alpha: t * (point.inOrbit ? 0.58 : 0.4) * cometScale.clamp(1, 1.15),
-          )
-          ..maskFilter = MaskFilter.blur(BlurStyle.normal, 2 + t * 5),
-      );
-
-      if (progress.hasSparkTrail && i % 5 == 0) {
+      final hasSparks = progress.hasSparkTrail;
+      for (int n = 0; n < count; n++) {
+        final point = _trail[(start + n) % len];
+        final t = n / count;
+        final trailOffset = Offset(point.x - position.x, point.y - position.y);
+        final trailColor = point.inOrbit ? coreColor : trailBaseColor;
         canvas.drawCircle(
-          trailOffset + Offset(2 - (i % 3).toDouble(), -1),
-          1.4 + t,
-          Paint()..color = GameColors.textPrimary.withValues(alpha: t * 0.7),
+          trailOffset,
+          collisionRadius * (point.inOrbit ? 0.8 : 0.6) * t * cometScale,
+          Paint()
+            ..color = trailColor.withValues(
+              alpha: t * (point.inOrbit ? 0.58 : 0.4) * cometScale.clamp(1, 1.15),
+            )
+            ..maskFilter = MaskFilter.blur(BlurStyle.normal, 2 + t * 5),
         );
+
+        if (hasSparks && n % 5 == 0) {
+          canvas.drawCircle(
+            trailOffset + Offset(2 - (n % 3).toDouble(), -1),
+            1.4 + t,
+            Paint()..color = GameColors.textPrimary.withValues(alpha: t * 0.7),
+          );
+        }
       }
     }
 
@@ -120,8 +142,7 @@ class Ball extends PositionComponent {
 }
 
 class _TrailPoint {
-  final Vector2 position;
-  final bool inOrbit;
-
-  _TrailPoint(this.position, this.inOrbit);
+  double x = 0;
+  double y = 0;
+  bool inOrbit = false;
 }

@@ -45,14 +45,14 @@ Current state: ✅ MVP playable — ball physics, orbit core, blocks, aim+shoot,
 - [x] **Indestructible blocks** — obstacles, must be navigated around
 
 ### Orbit variants
-- [ ] **Multiple orbit cores** per level (start at level 5+)
-- [ ] **Repulsor cores** — push ball away instead of attract (visual: red glow vs cyan)
-- [ ] **Moving cores** — slow drift, harder to plan around (later levels)
+- [x] **Multiple orbit cores** per level (start at level 5+)
+- [x] **Repulsor cores** — push ball away instead of attract (visual: red glow vs cyan)
+- [x] **Moving cores** — slow drift, harder to plan around (later levels)
 
 ### Power-ups (block drops)
-- [ ] **Multi-ball** — splits into 2 on next bounce
-- [ ] **Heavy ball** — bigger, ignores wall damping for 5 seconds
-- [ ] **Piercing ball** — passes through blocks for one shot
+- [x] **Multi-ball** — splits into 2 on next bounce
+- [x] **Heavy ball** — bigger, ignores wall damping for 5 seconds
+- [x] **Piercing ball** — passes through blocks for one shot
 
 **Design rule:** No more than 1 power-up active at a time. Keep mechanics readable.
 
@@ -76,11 +76,11 @@ Current state: ✅ MVP playable — ball physics, orbit core, blocks, aim+shoot,
 **Goal:** A new player understands the game in 30 seconds.
 
 - [x] Main menu screen (Play / Shop / Settings / Stats)
-- [ ] First-launch tutorial:
+- [x] First-launch tutorial:
   - Step 1: Aim and shoot (forced shot)
   - Step 2: Hit orbit core zone (forced setup)
   - Step 3: Combo (forced setup)
-- [ ] Tutorial dismissible after first clear
+- [x] Tutorial dismissible after first clear
 - [x] In-game hint system (subtle text on first encounter with new block type)
 
 ---
@@ -89,12 +89,12 @@ Current state: ✅ MVP playable — ball physics, orbit core, blocks, aim+shoot,
 **Goal:** Smooth 60fps on mid-tier Android. Tight, professional feel.
 
 - [ ] Profile with Flutter DevTools — verify no frame drops at high combo counts
-- [ ] Object pooling for particles and trail points (avoid GC pauses)
-- [ ] Audio loading optimization (preload all SFX, lazy-load music)
+- [x] Object pooling for particles and trail points (avoid GC pauses)
+- [x] Audio loading optimization (preload all SFX, lazy-load music)
 - [ ] Memory profiling at level 50+
 - [ ] Battery usage check (30-min play session)
-- [ ] App icon (designed in Figma, exported to all platform sizes)
-- [ ] Splash screen
+- [x] App icon (placeholder shipped via `flutter_launcher_icons`; swap `assets/branding/icon.png` for the final Figma artwork and rerun `dart run flutter_launcher_icons`)
+- [x] Splash screen (`flutter_native_splash` configured with the same placeholder; rerun `dart run flutter_native_splash:create` after artwork swap)
 - [ ] Test on: iPhone SE (small), iPhone 15 Pro (notch), Pixel 6 (Android mid), older Samsung
 
 ---
@@ -111,17 +111,6 @@ Current state: ✅ MVP playable — ball physics, orbit core, blocks, aim+shoot,
 - [ ] App preview video (15-30s gameplay)
 - [ ] TestFlight / Play Internal Testing build
 - [ ] Crash reporting (Sentry or Firebase Crashlytics)
-
----
-
-## Optional / Post-Launch
-
-- [ ] Analytics (event tracking — funnel, retention, level completion rate)
-- [ ] Rewarded ads (watch ad to revive / 2x coin reward)
-- [ ] IAP (remove ads, coin packs, "Pro" mode)
-- [ ] Leaderboards (Game Center / Play Games)
-- [ ] iCloud / Play Games save sync
-- [ ] Community features (share level seed, replay export)
 
 ---
 

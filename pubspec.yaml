@@ -46,6 +46,39 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.6
+
+# Generate platform icons:  dart run flutter_launcher_icons
+# Source: assets/branding/icon.png (currently a dark-navy + cyan placeholder;
+# swap with final Figma artwork — keep the same path and size).
+flutter_launcher_icons:
+  image_path: "assets/branding/icon.png"
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  web:
+    generate: true
+    background_color: "#0A0A0C"
+    theme_color: "#0A84FF"
+  adaptive_icon_background: "#0A0A0C"
+  adaptive_icon_foreground: "assets/branding/icon.png"
+  min_sdk_android: 21
+
+# Generate splash screens:  dart run flutter_native_splash:create
+flutter_native_splash:
+  color: "#0A0A0C"
+  color_dark: "#0A0A0C"
+  image: "assets/branding/icon.png"
+  image_dark: "assets/branding/icon.png"
+  android_12:
+    color: "#0A0A0C"
+    color_dark: "#0A0A0C"
+    image: "assets/branding/icon.png"
+    image_dark: "assets/branding/icon.png"
+  android: true
+  ios: true
+  web: false
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -62,6 +95,7 @@ flutter:
   assets:
     - assets/audio/music/
     - assets/audio/sfx/
+    - assets/branding/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

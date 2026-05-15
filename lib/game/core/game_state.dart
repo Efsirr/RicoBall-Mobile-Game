@@ -6,6 +6,8 @@ import 'power_up_type.dart';
 
 enum GamePhase { aiming, shooting, resetting }
 
+enum TutorialStep { aim, orbit, combo, done }
+
 class PowerUpHudState {
   final PowerUpType type;
   final String detail;
@@ -27,6 +29,7 @@ class GameState {
   final ValueNotifier<bool> noProgressNotifier = ValueNotifier(false);
   final ValueNotifier<String?> hintNotifier = ValueNotifier(null);
   final ValueNotifier<PowerUpHudState?> powerUpNotifier = ValueNotifier(null);
+  final ValueNotifier<TutorialStep?> tutorialNotifier = ValueNotifier(null);
 
   void resetCombo() => combo = 0;
 
@@ -78,7 +81,23 @@ class GameState {
     clearNoProgressOverlay();
     clearHint();
     clearPowerUp();
+    tutorialNotifier.value = null;
     scoreNotifier.value = score;
     levelNotifier.value = level;
   }
+
+  void startTutorial() => tutorialNotifier.value = TutorialStep.aim;
+
+  void advanceTutorial() {
+    final current = tutorialNotifier.value;
+    if (current == null || current == TutorialStep.done) return;
+    tutorialNotifier.value = switch (current) {
+      TutorialStep.aim => TutorialStep.orbit,
+      TutorialStep.orbit => TutorialStep.combo,
+      TutorialStep.combo => TutorialStep.done,
+      TutorialStep.done => TutorialStep.done,
+    };
+  }
+
+  void endTutorial() => tutorialNotifier.value = null;
 }

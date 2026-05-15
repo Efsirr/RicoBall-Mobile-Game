@@ -11,6 +11,7 @@ import '../core/game_state.dart';
 import '../core/power_up_type.dart';
 import '../core/ricochet_game.dart';
 import '../save/game_progress.dart';
+import 'tutorial_overlay.dart';
 
 class HudOverlay extends StatefulWidget {
   final RicochetGame game;
@@ -134,6 +135,8 @@ class _HudOverlayState extends State<HudOverlay> {
               );
             },
           ),
+        if (!_isPaused)
+          TutorialOverlay(game: widget.game),
       ],
     );
   }

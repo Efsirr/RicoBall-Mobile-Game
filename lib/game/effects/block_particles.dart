@@ -6,14 +6,39 @@ import 'package:flame/components.dart';
 class BlockParticles extends PositionComponent {
   static final Random _rng = Random();
   static const double _duration = 0.55;
+  static const int _shardCount = 16;
+
+  // Pool of shard lists. Each list has _shardCount mutable shards. When a
+  // BlockParticles is added, it borrows one list (or allocates if empty);
+  // on removal it returns the list. Capped to avoid unbounded growth.
+  static const int _poolMax = 24;
+  static final List<List<_Shard>> _pool = [];
 
   final Color color;
   final List<_Shard> _shards;
   double _age = 0;
 
-  BlockParticles({required super.position, required this.color, int count = 16})
-    : _shards = List.generate(count, _Shard.random),
-      super(anchor: Anchor.center);
+  BlockParticles({required super.position, required this.color})
+      : _shards = _acquireShards(),
+        super(anchor: Anchor.center);
+
+  static List<_Shard> _acquireShards() {
+    final shards = _pool.isNotEmpty
+        ? _pool.removeLast()
+        : List<_Shard>.generate(_shardCount, (_) => _Shard());
+    for (var i = 0; i < shards.length; i++) {
+      shards[i].reset(i);
+    }
+    return shards;
+  }
+
+  @override
+  void onRemove() {
+    if (_pool.length < _poolMax) {
+      _pool.add(_shards);
+    }
+    super.onRemove();
+  }
 
   @override
   void update(double dt) {
@@ -59,34 +84,26 @@ class BlockParticles extends PositionComponent {
 
 class _Shard {
   final Vector2 position = Vector2.zero();
-  final Vector2 velocity;
-  final Vector2 size;
-  final double opacity;
-  final double spin;
-  double rotation;
+  final Vector2 velocity = Vector2.zero();
+  final Vector2 size = Vector2.zero();
+  double opacity = 1.0;
+  double spin = 0;
+  double rotation = 0;
 
-  _Shard({
-    required this.velocity,
-    required this.size,
-    required this.opacity,
-    required this.spin,
-    required this.rotation,
-  });
-
-  factory _Shard.random(int index) {
+  void reset(int index) {
+    final rng = BlockParticles._rng;
     final angle =
-        (index / 16) * pi * 2 + (BlockParticles._rng.nextDouble() - 0.5) * 0.8;
-    final speed = 90 + BlockParticles._rng.nextDouble() * 180;
+        (index / BlockParticles._shardCount) * pi * 2 + (rng.nextDouble() - 0.5) * 0.8;
+    final speed = 90 + rng.nextDouble() * 180;
 
-    return _Shard(
-      velocity: Vector2(cos(angle), sin(angle))..scale(speed),
-      size: Vector2(
-        3 + BlockParticles._rng.nextDouble() * 7,
-        2 + BlockParticles._rng.nextDouble() * 4,
-      ),
-      opacity: 0.45 + BlockParticles._rng.nextDouble() * 0.55,
-      spin: -8 + BlockParticles._rng.nextDouble() * 16,
-      rotation: BlockParticles._rng.nextDouble() * pi,
+    position.setZero();
+    velocity.setValues(cos(angle) * speed, sin(angle) * speed);
+    size.setValues(
+      3 + rng.nextDouble() * 7,
+      2 + rng.nextDouble() * 4,
     );
+    opacity = 0.45 + rng.nextDouble() * 0.55;
+    spin = -8 + rng.nextDouble() * 16;
+    rotation = rng.nextDouble() * pi;
   }
 }

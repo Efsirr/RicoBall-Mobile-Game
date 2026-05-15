@@ -12,6 +12,7 @@ import 'constants.dart';
 import 'game_state.dart';
 import 'level_generator.dart';
 import '../effects/block_particles.dart';
+import '../effects/combo_effects.dart';
 import '../effects/game_haptics.dart';
 import '../effects/level_flash.dart';
 import '../entities/ball.dart';
@@ -76,6 +77,11 @@ class RicochetGame extends FlameGame {
     world.add(_InputOverlay(this)..priority = 100);
 
     _generateLevel();
+
+    // Start tutorial on first launch (after level gen so hints don't interfere)
+    if (!GameProgress.instance.tutorialDone) {
+      state.startTutorial();
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -301,6 +307,12 @@ class RicochetGame extends FlameGame {
       _slowMoTimer = 0.18;
       _shakeIntensity = max(_shakeIntensity, 1.5);
       unawaited(GameAudio.instance.playSfx(GameSfx.orbitEnter));
+      unawaited(GameProgress.instance.recordOrbitEnter());
+
+      // Tutorial: Step 2 — ball entered orbit
+      if (state.tutorialNotifier.value == TutorialStep.orbit) {
+        state.advanceTutorial(); // -> combo
+      }
     }
     _wasOrbitingLastFrame = anyInOrbit;
   }
@@ -363,13 +375,37 @@ class RicochetGame extends FlameGame {
   // ---------------------------------------------------------------------------
 
   void _onBlockHit(Ball activeBall) {
+    final previousCombo = state.combo;
     state.incrementCombo();
+    final scoreDelta = 10 * (state.combo < 1 ? 1 : state.combo);
     state.addScore(10);
     unawaited(GameProgress.instance.recordScore(state.score));
     unawaited(GameProgress.instance.recordCombo(state.combo));
-    _shakeIntensity = 2.0 + state.combo * 0.5;
+    final newTier = comboTierFor(state.combo);
+    final tierBroke = newTier.index > comboTierFor(previousCombo).index;
+    _shakeIntensity = max(_shakeIntensity, 2.0 + state.combo * 0.5);
+    if (tierBroke && newTier.index >= ComboTier.streak.index) {
+      _shakeIntensity = max(_shakeIntensity, 7.0 + newTier.index * 1.5);
+      _slowMoTimer = max(_slowMoTimer, 0.14 + newTier.index * 0.04);
+    }
     GameHaptics.blockHit();
     unawaited(GameAudio.instance.playSfx(GameSfx.blockHit));
+
+    ComboFx.onBlockHit(
+      game: this,
+      impactPosition: activeBall.position.clone(),
+      ballPosition: activeBall.position.clone(),
+      combo: state.combo,
+      previousCombo: previousCombo,
+      scoreDelta: scoreDelta,
+      perfectOrbit: activeBall.isInOrbit && state.combo >= 3,
+    );
+
+    // Tutorial: Step 3 — player got a combo (2+ hits in one shot)
+    if (state.tutorialNotifier.value == TutorialStep.combo && state.combo >= 2) {
+      state.advanceTutorial(); // -> done
+      unawaited(_finishTutorial());
+    }
 
     if (activeBall.isInOrbit && state.combo >= 3) {
       comboDisplay.show('PERFECT ORBIT');
@@ -702,6 +738,7 @@ class RicochetGame extends FlameGame {
   void onAimEnd() {
     if (state.phase != GamePhase.aiming || _aimDir == null) return;
 
+    unawaited(GameProgress.instance.recordSingleShotBlocks(_blocksDestroyedThisShot));
     ball.launch(_aimDir!);
     state.phase = GamePhase.shooting;
     state.resetCombo();
@@ -713,6 +750,26 @@ class RicochetGame extends FlameGame {
     _aimDir = null;
     GameHaptics.launch();
     unawaited(GameAudio.instance.playSfx(GameSfx.launch));
+    unawaited(GameProgress.instance.recordShotLaunched());
+
+    // Tutorial: Step 1 — player aimed and shot
+    if (state.tutorialNotifier.value == TutorialStep.aim) {
+      state.advanceTutorial(); // -> orbit
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Tutorial helpers
+  // ---------------------------------------------------------------------------
+
+  Future<void> _finishTutorial() async {
+    await GameProgress.instance.setTutorialDone();
+    state.endTutorial();
+  }
+
+  Future<void> skipTutorial() async {
+    await GameProgress.instance.setTutorialDone();
+    state.endTutorial();
   }
 }
 
