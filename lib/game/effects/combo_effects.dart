@@ -65,6 +65,12 @@ final Random _rng = Random();
 // ─── Dispatcher ────────────────────────────────────────────────────────────
 
 class ComboFx {
+  // Optional bridge to the game's hitstop. Wired from RicochetGame.onLoad.
+  static void Function(double duration)? freezeCallback;
+
+  // Persistent tier-progress meter — refreshed on hit, fades on idle.
+  static ComboMeter? _activeMeter;
+
   static void onBlockHit({
     required FlameGame game,
     required Vector2 impactPosition,
@@ -86,6 +92,8 @@ class ComboFx {
     if (tier.index >= ComboTier.spark.index) {
       game.world.add(ImpactBurst(impactPosition.clone(), tier)..priority = 27);
       game.world.add(MicroFlash(tier)..priority = 87);
+      _refreshComboMeter(game, combo, tier);
+      _maybeSpawnAdjective(game, impactPosition, tier);
     }
 
     if (tier.index >= ComboTier.surge.index) {
@@ -117,22 +125,67 @@ class ComboFx {
       game.world.add(StarBurst(impactPosition.clone(), tier)..priority = 29);
     }
 
+    // ── Tier break: the climactic moment ──────────────────────────────
     if (tierBroke) {
       game.world.add(TierBanner(tier)..priority = 95);
       game.world.add(Shockwave(impactPosition.clone(), tier, intensity: 1.0)..priority = 92);
       game.world.add(ScreenSlash(tier)..priority = 94);
+      game.world.add(ColorWash(tier)..priority = 89);
+      game.world.add(AdjectiveCallout(impactPosition.clone(), tier)..priority = 34);
+
+      if (tier.index >= ComboTier.streak.index) {
+        game.world.add(GiantComboNumber(impactPosition.clone(), combo, tier)..priority = 95);
+        freezeCallback?.call(0.06 + tier.index * 0.014);
+      }
+      if (tier.index >= ComboTier.blaze.index) {
+        game.world.add(EdgeFlare(tier)..priority = 7);
+      }
     }
 
+    // ── Milestone (every 5th hit) ─────────────────────────────────────
     if (combo > 0 && combo % 5 == 0) {
       game.world.add(NumberStamp(impactPosition.clone(), combo, tier)..priority = 33);
       if (!tierBroke) {
         game.world.add(Shockwave(impactPosition.clone(), tier, intensity: 0.55)..priority = 92);
+      }
+      // Bigger pop on every-10 milestone at blaze+
+      if (tier.index >= ComboTier.blaze.index && combo % 10 == 0) {
+        game.world.add(GiantComboNumber(impactPosition.clone(), combo, tier)..priority = 95);
       }
     }
 
     if (perfectOrbit) {
       game.world.add(ComboRingPulse(impactPosition.clone(), tier, accent: true)..priority = 28);
     }
+  }
+
+  static void _refreshComboMeter(FlameGame game, int combo, ComboTier tier) {
+    final meter = _activeMeter;
+    if (meter != null && meter.parent != null && !meter.isRemoved) {
+      meter.refresh(combo, tier);
+      return;
+    }
+    final next = ComboMeter(combo, tier)..priority = 85;
+    _activeMeter = next;
+    game.world.add(next);
+  }
+
+  static void _maybeSpawnAdjective(
+    FlameGame game,
+    Vector2 pos,
+    ComboTier tier,
+  ) {
+    final chance = switch (tier) {
+      ComboTier.none => 0.0,
+      ComboTier.spark => 0.28,
+      ComboTier.surge => 0.46,
+      ComboTier.streak => 0.68,
+      ComboTier.blaze => 0.86,
+      ComboTier.apex => 1.0,
+      ComboTier.singularity => 1.0,
+    };
+    if (_rng.nextDouble() > chance) return;
+    game.world.add(AdjectiveCallout(pos.clone(), tier)..priority = 34);
   }
 }
 
@@ -1036,5 +1089,311 @@ class StarBurst extends PositionComponent {
         paint,
       );
     }
+  }
+}
+
+// ─── 21. AdjectiveCallout — random Tony-Hawk-style flavor text ─────────────
+
+class AdjectiveCallout extends PositionComponent {
+  AdjectiveCallout(Vector2 pos, this.tier) : super(position: pos);
+
+  final ComboTier tier;
+  static const _duration = 0.78;
+  double _age = 0;
+  late final String _text = _pickWord(tier);
+  late final double _drift = (_rng.nextDouble() - 0.5) * 28;
+
+  static const Map<ComboTier, List<String>> _wordsByTier = {
+    ComboTier.spark: ['NICE', 'CLEAN', 'SHARP', 'CRISP'],
+    ComboTier.surge: ['SLICK', 'TIGHT', 'SOLID', 'HOT'],
+    ComboTier.streak: ['BLAZING', 'WICKED', 'ON FIRE', 'INSANE'],
+    ComboTier.blaze: ['SICK!', 'UNREAL', 'FLAWLESS', 'SAVAGE'],
+    ComboTier.apex: ['GODLIKE', 'MYTHIC', 'PERFECT', 'TRANSCENDENT'],
+    ComboTier.singularity: ['COSMIC', 'INFINITE', 'ABSOLUTE', 'SINGULARITY'],
+  };
+
+  static String _pickWord(ComboTier tier) {
+    final list = _wordsByTier[tier] ?? const ['NICE'];
+    return list[_rng.nextInt(list.length)];
+  }
+
+  @override
+  void update(double dt) {
+    _age += dt;
+    position.y -= 44 * dt;
+    position.x += _drift * dt;
+    if (_age >= _duration) removeFromParent();
+  }
+
+  @override
+  void render(Canvas canvas) {
+    final t = (_age / _duration).clamp(0.0, 1.0);
+    final pop = t < 0.13 ? t / 0.13 : 1.0;
+    final fade = t > 0.6 ? 1 - ((t - 0.6) / 0.4).clamp(0.0, 1.0) : 1.0;
+    final opacity = pop * fade;
+    final scale = 0.7 + pop * 0.4;
+    final color = _tierAccent(tier);
+
+    final tp = TextPainter(
+      text: TextSpan(
+        text: _text,
+        style: TextStyle(
+          color: color.withValues(alpha: opacity),
+          fontSize: (16 + tier.index * 1.5) * scale,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 2.2,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    canvas.drawCircle(
+      Offset(0, -26),
+      tp.width * 0.55,
+      Paint()
+        ..color = color.withValues(alpha: opacity * 0.18)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12),
+    );
+    tp.paint(canvas, Offset(-tp.width / 2, -tp.height / 2 - 26));
+  }
+}
+
+// ─── 22. GiantComboNumber — the big pop at impact on tier breaks ───────────
+
+class GiantComboNumber extends PositionComponent {
+  GiantComboNumber(Vector2 pos, this.combo, this.tier) : super(position: pos);
+
+  final int combo;
+  final ComboTier tier;
+  static const _duration = 0.95;
+  double _age = 0;
+
+  @override
+  void update(double dt) {
+    _age += dt;
+    if (_age >= _duration) removeFromParent();
+  }
+
+  @override
+  void render(Canvas canvas) {
+    final t = (_age / _duration).clamp(0.0, 1.0);
+    // Snap-in with subtle overshoot then settle.
+    final double scale;
+    if (t < 0.10) {
+      scale = (t / 0.10) * 1.18;
+    } else if (t < 0.18) {
+      scale = 1.18 - ((t - 0.10) / 0.08) * 0.18;
+    } else {
+      scale = 1.0;
+    }
+    final fade = t > 0.55 ? 1 - ((t - 0.55) / 0.45).clamp(0.0, 1.0) : 1.0;
+    final opacity = fade;
+
+    final fontSize = 56.0 + tier.index * 6;
+    final color = _tierAccent(tier);
+
+    canvas.drawCircle(
+      Offset.zero,
+      fontSize * scale * 0.85,
+      Paint()
+        ..color = color.withValues(alpha: opacity * 0.16)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, fontSize * 0.55),
+    );
+
+    final tp = TextPainter(
+      text: TextSpan(
+        text: 'x$combo',
+        style: TextStyle(
+          color: color.withValues(alpha: opacity),
+          fontSize: fontSize * scale,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 1.6,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(canvas, Offset(-tp.width / 2, -tp.height / 2));
+  }
+}
+
+// ─── 23. ColorWash — full-screen brief tint on tier break ──────────────────
+
+class ColorWash extends Component with HasGameReference<FlameGame> {
+  ColorWash(this.tier);
+
+  final ComboTier tier;
+  static const _duration = 0.32;
+  double _age = 0;
+
+  @override
+  void update(double dt) {
+    _age += dt;
+    if (_age >= _duration) removeFromParent();
+  }
+
+  @override
+  void render(Canvas canvas) {
+    final t = (_age / _duration).clamp(0.0, 1.0);
+    final pulse = sin(t * pi);
+    final opacity = pulse * 0.18 * (0.6 + _tierIntensity(tier) * 0.4);
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, game.size.x, game.size.y),
+      Paint()..color = _tierAccent(tier).withValues(alpha: opacity),
+    );
+  }
+}
+
+// ─── 24. ComboMeter — persistent tier-progress bar (refreshed on hit) ──────
+
+class ComboMeter extends Component with HasGameReference<FlameGame> {
+  ComboMeter(this._combo, this._tier);
+
+  int _combo;
+  ComboTier _tier;
+  static const _duration = 1.6;
+  double _age = 0;
+
+  void refresh(int combo, ComboTier tier) {
+    _combo = combo;
+    _tier = tier;
+    _age = 0;
+  }
+
+  static const Map<ComboTier, (int, int)> _ranges = {
+    ComboTier.spark: (2, 5),
+    ComboTier.surge: (5, 10),
+    ComboTier.streak: (10, 20),
+    ComboTier.blaze: (20, 35),
+    ComboTier.apex: (35, 50),
+    ComboTier.singularity: (50, 100),
+  };
+
+  double get _fill {
+    final r = _ranges[_tier];
+    if (r == null) return 0;
+    final lo = r.$1;
+    final hi = r.$2;
+    return ((_combo - lo) / (hi - lo)).clamp(0.0, 1.0);
+  }
+
+  @override
+  void update(double dt) {
+    _age += dt;
+    if (_age >= _duration) removeFromParent();
+  }
+
+  @override
+  void render(Canvas canvas) {
+    final t = (_age / _duration).clamp(0.0, 1.0);
+    final entrance = (t * 6).clamp(0.0, 1.0);
+    final exit = t > 0.78 ? 1 - ((t - 0.78) / 0.22).clamp(0.0, 1.0) : 1.0;
+    final opacity = entrance * exit;
+    final fill = _fill;
+
+    final s = game.size;
+    const margin = 68.0;
+    final barW = s.x - margin * 2;
+    const barH = 3.0;
+    final y = s.y - 110;
+    const x = margin;
+    final color = _tierColor(_tier);
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(x, y, barW, barH),
+        const Radius.circular(2),
+      ),
+      Paint()..color = const Color(0xFF1B2238).withValues(alpha: opacity * 0.75),
+    );
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(x, y, barW * fill, barH),
+        const Radius.circular(2),
+      ),
+      Paint()..color = color.withValues(alpha: opacity),
+    );
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(x, y - 1, barW * fill, barH + 2),
+        const Radius.circular(3),
+      ),
+      Paint()
+        ..color = color.withValues(alpha: opacity * 0.4)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+    );
+
+    if (fill > 0.02) {
+      canvas.drawCircle(
+        Offset(x + barW * fill, y + barH / 2),
+        3.5 + sin(_age * 12) * 0.6,
+        Paint()
+          ..color = color.withValues(alpha: opacity)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+      );
+    }
+
+    final label = switch (_tier) {
+      ComboTier.none => '',
+      ComboTier.spark => 'SPARK',
+      ComboTier.surge => 'SURGE',
+      ComboTier.streak => 'STREAK',
+      ComboTier.blaze => 'BLAZE',
+      ComboTier.apex => 'APEX',
+      ComboTier.singularity => 'SINGULARITY',
+    };
+    if (label.isNotEmpty) {
+      final tp = TextPainter(
+        text: TextSpan(
+          text: '$label  ·  x$_combo',
+          style: TextStyle(
+            color: color.withValues(alpha: opacity * 0.85),
+            fontSize: 9,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 2.6,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, Offset(x, y - tp.height - 6));
+    }
+  }
+}
+
+// ─── 25. EdgeFlare — bottom-edge gradient flare on tier break ──────────────
+
+class EdgeFlare extends Component with HasGameReference<FlameGame> {
+  EdgeFlare(this.tier);
+
+  final ComboTier tier;
+  static const _duration = 0.55;
+  double _age = 0;
+
+  @override
+  void update(double dt) {
+    _age += dt;
+    if (_age >= _duration) removeFromParent();
+  }
+
+  @override
+  void render(Canvas canvas) {
+    final t = (_age / _duration).clamp(0.0, 1.0);
+    final pulse = sin(t * pi);
+    final opacity = pulse * 0.55 * _tierIntensity(tier);
+    final s = game.size;
+    final color = _tierAccent(tier);
+    final h = 200.0 + tier.index * 22;
+
+    final paint = Paint()
+      ..shader = Gradient.linear(
+        Offset(0, s.y),
+        Offset(0, s.y - h),
+        [
+          color.withValues(alpha: opacity),
+          color.withValues(alpha: 0),
+        ],
+      );
+    canvas.drawRect(Rect.fromLTWH(0, s.y - h, s.x, h), paint);
   }
 }

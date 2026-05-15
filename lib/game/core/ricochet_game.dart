@@ -44,6 +44,7 @@ class RicochetGame extends FlameGame {
   Vector2? _aimDir;
   double _shakeIntensity = 0;
   double _slowMoTimer = 0;
+  double _freezeTimer = 0;
   double _heavyTimer = 0;
   int _blocksDestroyedThisShot = 0;
   int _piercingHitsRemaining = 0;
@@ -75,6 +76,9 @@ class RicochetGame extends FlameGame {
     world.add(comboDisplay);
 
     world.add(_InputOverlay(this)..priority = 100);
+
+    // Wire the combo dispatcher's hitstop bridge to our own freeze timer.
+    ComboFx.freezeCallback = triggerComboFreeze;
 
     _generateLevel();
 
@@ -246,11 +250,20 @@ class RicochetGame extends FlameGame {
     _updateShake();
   }
 
+  /// Called by the combo dispatcher on tier breaks. Pauses the physics
+  /// sim for [duration] seconds — the visual hitstop that makes big
+  /// combos feel weighty.
+  void triggerComboFreeze(double duration) {
+    _freezeTimer = max(_freezeTimer, duration);
+  }
+
   void _updatePhysics(double dt) {
     final activeBalls = _balls.where((activeBall) => activeBall.isActive).toList();
     if (activeBalls.isEmpty) return;
 
-    final simDt = _slowMoTimer > 0 ? dt * 0.55 : dt;
+    final frozen = _freezeTimer > 0;
+    _freezeTimer = max(0, _freezeTimer - dt);
+    final simDt = frozen ? 0.0 : (_slowMoTimer > 0 ? dt * 0.55 : dt);
     _slowMoTimer = max(0, _slowMoTimer - dt);
     _updatePowerUpTimers(dt);
 
