@@ -9,14 +9,14 @@ Current state: ✅ MVP playable — ball physics, orbit core, blocks, aim+shoot,
 ## Phase 1 — Feel & Juice
 **Goal:** Make the existing MVP feel satisfying. Nail the orbit gameplay before adding anything.
 
-- [ ] Sound effects (ball launch, wall bounce, block hit, block destroy, orbit enter, combo trigger, level complete)
-- [ ] Background ambient music (looping low-fi sci-fi track)
+- [x] Sound effects (ball launch, wall bounce, block hit, block destroy, orbit enter, combo trigger, level complete)
+- [x] Background ambient music (looping low-fi sci-fi track)
 - [x] Haptic feedback on block hits and combos (`HapticFeedback`)
 - [x] Particle effects on block destruction (debris shards flying out)
 - [x] Improved ball trail (smoother fade, color shift when in orbit)
 - [x] Block spawn animation (fade-in + slight scale on level start)
 - [x] Level complete transition (brief flash)
-- [ ] Tweak orbit physics until it feels *intentional* — this is the make-or-break feel test
+- [x] Tweak orbit physics until it feels *intentional* — this is the make-or-break feel test
 - [x] Add slow-mo or time-dilation when ball enters orbit (optional, evaluate if it adds or distracts)
 
 **Exit criteria:** Friends/testers play for 10+ minutes without prompting.
