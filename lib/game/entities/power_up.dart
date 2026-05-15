@@ -2,7 +2,7 @@ import 'dart:math';
 import 'dart:ui';
 
 import 'package:flame/components.dart';
-import 'package:flutter/painting.dart' show TextPainter, TextSpan, TextStyle;
+import 'package:flutter/painting.dart' show TextPainter, TextSpan, TextStyle, RadialGradient;
 
 import '../core/constants.dart';
 import '../core/power_up_type.dart';
