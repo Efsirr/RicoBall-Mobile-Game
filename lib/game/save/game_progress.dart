@@ -765,6 +765,21 @@ class GameProgress extends ChangeNotifier {
     return unlockedAchievementIds.contains(achievement.id);
   }
 
+  // Global scaler applied to every achievement's authored rewardCoins.
+  // The economy is intentionally lightweight — keep coins scarce so
+  // cosmetics feel premium and the main reward stays the gameplay.
+  // Adjust this single constant to rebalance the whole payout curve.
+  static const double _achievementRewardScale = 0.30;
+
+  /// Coins a player actually receives when this achievement unlocks
+  /// (after the global scale). Display this in the UI, not the raw
+  /// rewardCoins field.
+  int effectiveAchievementReward(AchievementDef achievement) {
+    final scaled = (achievement.rewardCoins * _achievementRewardScale).round();
+    // Guarantee at least 1 coin so every unlock still feels like a win.
+    return scaled < 1 ? 1 : scaled;
+  }
+
   CosmeticItem _cosmeticById(String id) {
     return cosmetics.firstWhere((item) => item.id == id);
   }
@@ -786,8 +801,9 @@ class GameProgress extends ChangeNotifier {
 
       unlockedAchievementIds.add(achievement.id);
       newlyUnlocked.add(achievement.id);
-      coins += achievement.rewardCoins;
-      totalCoinsEarned += achievement.rewardCoins;
+      final payout = effectiveAchievementReward(achievement);
+      coins += payout;
+      totalCoinsEarned += payout;
     }
 
     if (newlyUnlocked.isEmpty) return;

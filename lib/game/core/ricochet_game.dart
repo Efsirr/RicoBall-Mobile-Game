@@ -485,14 +485,18 @@ class RicochetGame extends FlameGame {
   }
 
   int _coinReward(Block block) {
+    // Lightweight economy — block coins are a slow trickle, not a faucet.
+    // A standard HP1 block drops 2 coins; the biggest non-indestructible
+    // drop tops out around 6. Achievements and milestones supplement,
+    // but the main reward for play is play itself.
     final typeBonus = switch (block.type) {
       BlockType.standard => 0,
-      BlockType.explosive => 3,
-      BlockType.reinforced => 4,
-      BlockType.moving => 5,
+      BlockType.explosive => 1,
+      BlockType.reinforced => 2,
+      BlockType.moving => 2,
       BlockType.indestructible => 0,
     };
-    return 2 + block.maxHp * 2 + typeBonus;
+    return 1 + block.maxHp + typeBonus;
   }
 
   void _onBallStopped(Ball stoppedBall) {

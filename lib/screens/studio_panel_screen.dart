@@ -868,7 +868,9 @@ class _AchievementRow extends StatelessWidget {
             ),
           ),
           _TinyStatus(
-            label: isUnlocked ? 'DONE' : '+${achievement.rewardCoins} C',
+            label: isUnlocked
+                ? 'DONE'
+                : '+${GameProgress.instance.effectiveAchievementReward(achievement)} C',
             color: isUnlocked ? GameColors.blockHp1 : GameColors.warning,
           ),
         ],
