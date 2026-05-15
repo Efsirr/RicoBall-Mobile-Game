@@ -9,35 +9,44 @@ import '../entities/block.dart';
 abstract final class PhysicsEngine {
   static Rect gameField(Vector2 gameSize) {
     const inset = GameConst.wallInset;
-    return Rect.fromLTRB(inset, inset, gameSize.x - inset, gameSize.y - inset);
+    return Rect.fromLTRB(
+      inset,
+      GameConst.fieldTopInset,
+      gameSize.x - inset,
+      gameSize.y - GameConst.fieldBottomInset,
+    );
   }
 
-  static bool handleWallCollisions(Ball ball, Rect field) {
-    const r = GameConst.ballRadius;
+  static bool handleWallCollisions(
+    Ball ball,
+    Rect field, {
+    bool applyDamping = true,
+  }) {
+    final r = ball.collisionRadius;
     bool bounced = false;
 
     if (ball.position.x - r < field.left) {
       ball.position.x = field.left + r;
       ball.velocity.x = ball.velocity.x.abs();
-      ball.velocity.scale(GameConst.wallBounceDamp);
       bounced = true;
     } else if (ball.position.x + r > field.right) {
       ball.position.x = field.right - r;
       ball.velocity.x = -ball.velocity.x.abs();
-      ball.velocity.scale(GameConst.wallBounceDamp);
       bounced = true;
     }
 
     if (ball.position.y - r < field.top) {
       ball.position.y = field.top + r;
       ball.velocity.y = ball.velocity.y.abs();
-      ball.velocity.scale(GameConst.wallBounceDamp);
       bounced = true;
     } else if (ball.position.y + r > field.bottom) {
       ball.position.y = field.bottom - r;
       ball.velocity.y = -ball.velocity.y.abs();
-      ball.velocity.scale(GameConst.wallBounceDamp);
       bounced = true;
+    }
+
+    if (bounced && applyDamping) {
+      ball.velocity.scale(GameConst.wallBounceDamp);
     }
 
     return bounced;
@@ -47,33 +56,28 @@ abstract final class PhysicsEngine {
     final halfW = block.size.x / 2;
     final halfH = block.size.y / 2;
 
-    final double closestX = ball.position.x.clamp(
-      block.position.x - halfW,
-      block.position.x + halfW,
-    ).toDouble();
-    final double closestY = ball.position.y.clamp(
-      block.position.y - halfH,
-      block.position.y + halfH,
-    ).toDouble();
+    final double closestX = ball.position.x
+        .clamp(block.position.x - halfW, block.position.x + halfW)
+        .toDouble();
+    final double closestY = ball.position.y
+        .clamp(block.position.y - halfH, block.position.y + halfH)
+        .toDouble();
 
     final dx = ball.position.x - closestX;
     final dy = ball.position.y - closestY;
-    return (dx * dx + dy * dy) <
-        GameConst.ballRadius * GameConst.ballRadius;
+    return (dx * dx + dy * dy) < ball.collisionRadius * ball.collisionRadius;
   }
 
   static void resolveBallBlock(Ball ball, Block block) {
     final halfW = block.size.x / 2;
     final halfH = block.size.y / 2;
 
-    final double closestX = ball.position.x.clamp(
-      block.position.x - halfW,
-      block.position.x + halfW,
-    ).toDouble();
-    final double closestY = ball.position.y.clamp(
-      block.position.y - halfH,
-      block.position.y + halfH,
-    ).toDouble();
+    final double closestX = ball.position.x
+        .clamp(block.position.x - halfW, block.position.x + halfW)
+        .toDouble();
+    final double closestY = ball.position.y
+        .clamp(block.position.y - halfH, block.position.y + halfH)
+        .toDouble();
 
     final normal = Vector2(
       ball.position.x - closestX,
@@ -97,7 +101,7 @@ abstract final class PhysicsEngine {
     // Push ball outside block
     ball.position
       ..setFrom(Vector2(closestX, closestY))
-      ..add(normal.scaled(GameConst.ballRadius + 0.5));
+      ..add(normal.scaled(ball.collisionRadius + 0.5));
   }
 
   static void handleCoreCollision(
@@ -106,7 +110,7 @@ abstract final class PhysicsEngine {
     double coreRadius,
   ) {
     final dist = ball.position.distanceTo(corePos);
-    final minDist = coreRadius + GameConst.ballRadius;
+    final minDist = coreRadius + ball.collisionRadius;
     if (dist >= minDist) return;
 
     final normal = (ball.position - corePos)..normalize();

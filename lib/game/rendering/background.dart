@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
+import 'package:flutter/painting.dart' show Alignment, RadialGradient;
 
 import '../core/constants.dart';
 import '../physics/physics_engine.dart';
@@ -15,6 +16,21 @@ class Background extends Component with HasGameReference<FlameGame> {
     canvas.drawRect(
       Rect.fromLTWH(0, 0, s.x, s.y),
       Paint()..color = GameColors.background,
+    );
+
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, s.x, s.y),
+      Paint()
+        ..shader = RadialGradient(
+          center: const Alignment(0.05, -0.35),
+          radius: 1.05,
+          colors: [
+            GameColors.electricBlue.withValues(alpha: 0.18),
+            GameColors.backgroundAlt.withValues(alpha: 0.18),
+            GameColors.background.withValues(alpha: 0),
+          ],
+          stops: const [0, 0.42, 1],
+        ).createShader(Rect.fromLTWH(0, 0, s.x, s.y)),
     );
 
     // Subtle grid
@@ -36,7 +52,7 @@ class Background extends Component with HasGameReference<FlameGame> {
     canvas.drawRect(
       field,
       Paint()
-        ..color = GameColors.wallGlow.withValues(alpha:0.15)
+        ..color = GameColors.wallGlow.withValues(alpha: 0.18)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 6
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),

@@ -4,22 +4,19 @@ import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 
 import '../core/constants.dart';
+import '../entities/orbit_core.dart';
 import '../physics/physics_engine.dart';
 
 class AimLine extends Component with HasGameReference<FlameGame> {
   List<Vector2> _points = [];
 
-  void calculate(Vector2 origin, Vector2 velocity, Vector2 orbitCorePos) {
-    _points = _simulate(origin, velocity, orbitCorePos);
+  void calculate(Vector2 origin, Vector2 velocity, List<OrbitCore> cores) {
+    _points = _simulate(origin, velocity, cores);
   }
 
   void clear() => _points = [];
 
-  List<Vector2> _simulate(
-    Vector2 startPos,
-    Vector2 vel,
-    Vector2 corePos,
-  ) {
+  List<Vector2> _simulate(Vector2 startPos, Vector2 vel, List<OrbitCore> cores) {
     final pts = <Vector2>[];
     final pos = startPos.clone();
     final v = vel.clone();
@@ -47,14 +44,24 @@ class AimLine extends Component with HasGameReference<FlameGame> {
         v.y = -v.y.abs();
       }
 
-      // Orbit influence
-      final toCore = corePos - pos;
-      final dist = toCore.length;
-      if (dist < GameConst.orbitInfluenceRadius &&
-          dist > GameConst.orbitCoreRadius) {
+      for (final core in cores) {
+        final toCore = core.position - pos;
+        final dist = toCore.length;
+        if (dist >= GameConst.orbitInfluenceRadius ||
+            dist <= GameConst.orbitCoreRadius) {
+          continue;
+        }
+
         final t = 1.0 - dist / GameConst.orbitInfluenceRadius;
-        final str = GameConst.orbitStrength * t * t;
-        v.add(toCore.normalized()..scale(str * GameConst.trajectoryDt));
+        final strength = (core.isRepulsor
+                ? GameConst.repulsorStrength
+                : GameConst.orbitStrength) *
+            t *
+            t;
+        final direction = core.isRepulsor
+            ? (pos - core.position).normalized()
+            : toCore.normalized();
+        v.add(direction..scale(strength * GameConst.trajectoryDt));
       }
 
       v.scale(GameConst.ballDrag);
@@ -76,7 +83,7 @@ class AimLine extends Component with HasGameReference<FlameGame> {
       if (i % 4 >= 2) continue; // Dashed pattern
 
       final t = 1.0 - (i / _points.length);
-      paint.color = GameColors.aimLine.withValues(alpha:t * 0.6);
+      paint.color = GameColors.aimLine.withValues(alpha: t * 0.6);
       canvas.drawLine(
         _points[i - 1].toOffset(),
         _points[i].toOffset(),

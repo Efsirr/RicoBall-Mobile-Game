@@ -2,6 +2,25 @@
 
 A new Flutter project.
 
+## Unity Ads
+
+Unity Ads is wired through `unity_ads_plugin` and is disabled until a platform
+Game ID is provided at build/run time.
+
+Example Android run:
+
+```sh
+flutter run \
+  --dart-define=UNITY_ADS_ANDROID_GAME_ID=your_android_game_id \
+  --dart-define=UNITY_ADS_BANNER_PLACEMENT_ID=banner \
+  --dart-define=UNITY_ADS_INTERSTITIAL_PLACEMENT_ID=video \
+  --dart-define=UNITY_ADS_REWARDED_PLACEMENT_ID=rewardedVideo
+```
+
+For iOS, use `UNITY_ADS_IOS_GAME_ID`. Ads run in Unity test mode by default;
+set `--dart-define=UNITY_ADS_TEST_MODE=false` for production builds after the
+Unity Dashboard placements are ready.
+
 ## Getting Started
 
 This project is a starting point for a Flutter application.
