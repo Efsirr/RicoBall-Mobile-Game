@@ -30,7 +30,7 @@ abstract final class GameConst {
   static const double fieldTopInset = 190.0;
   static const double fieldBottomInset = 112.0;
   static const double ballRadius = 8.0;
-  static const double ballSpeed = 500.0;
+  static const double ballSpeed = 800.0;
   static const double ballMinSpeed = 60.0;
   static const double ballDrag = 0.9995;
   static const double wallBounceDamp = 0.98;
@@ -45,7 +45,7 @@ abstract final class GameConst {
   static const double orbitStrength = 600.0;
   static const double repulsorStrength = 520.0;
   static const double movingCoreSpeed = 22.0;
-  static const double maxBallSpeed = 900.0;
+  static const double maxBallSpeed = 1400.0;
 
   static const double blockWidth = 48.0;
   static const double blockHeight = 22.0;
